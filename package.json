@@ -1,27 +1,23 @@
 {
-  "name": "vite-template-solid",
-  "version": "0.0.0",
-  "description": "",
-  "type": "module",
-  "scripts": {
-    "start": "vite",
-    "dev": "vite",
-    "build": "vite build",
-    "serve": "vite preview"
-  },
-  "license": "MIT",
-  "devDependencies": {
-    "typescript": "^5.7.2",
-    "vite": "^6.0.0",
-    "vite-plugin-solid": "^2.11.6"
-  },
-  "dependencies": {
-    "@solidjs/router": "^0.15.3",
-    "@tailwindcss/vite": "^4.1.6",
-    "@tanstack/solid-query": "^5.76.0",
-    "daisyui": "^5.0.35",
-    "solid-js": "^1.9.5",
-    "tailwindcss": "^4.1.6"
-  },
-  "packageManager": "yarn@4.9.1"
+	"type": "module",
+	"license": "UNLICENSED",
+	"scripts": {
+		"start:app": "yarn workspaces foreach --all -p -v -i run dev",
+		"lint": "eslint .",
+		"format": "prettier .",
+		"taze": "yarn dlx taze -r -I",
+		"typecheck": "yarn workspaces foreach -p -A run typecheck"
+	},
+	"devDependencies": {
+		"@julr/tooling-configs": "^4.0.0",
+		"eslint": "^9.26.0",
+		"prettier": "^3.5.3"
+	},
+	"workspaces": [
+		"apps/*"
+	],
+	"volta": {
+		"node": "22.15.0"
+	},
+	"packageManager": "yarn@4.9.1"
 }

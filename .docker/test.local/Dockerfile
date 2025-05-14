@@ -7,7 +7,7 @@ RUN apt update &\
 # Base installer
 FROM base AS installer
 RUN corepack enable
-COPY . .
+COPY ../../apps/test.local .
 
 # All deps stage
 FROM installer AS deps
