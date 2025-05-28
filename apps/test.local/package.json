@@ -15,13 +15,16 @@
 		"vite-plugin-solid": "^2.11.6"
 	},
 	"dependencies": {
+		"@modular-forms/solid": "^0.25.1",
 		"@natiq/api.test.local": "workspace:*",
 		"@solidjs/router": "^0.15.3",
 		"@tailwindcss/vite": "^4.1.6",
 		"@tanstack/solid-query": "^5.76.0",
+		"@tuyau/client": "^0.2.8",
 		"daisyui": "^5.0.35",
 		"solid-js": "^1.9.5",
-		"tailwindcss": "^4.1.6"
+		"tailwindcss": "^4.1.6",
+		"zod": "^3.24.4"
 	},
 	"volta": {
 		"extends": "../../package.json"

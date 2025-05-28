@@ -4,7 +4,7 @@
 	"scripts": {
 		"start:app": "yarn workspaces foreach --all -p -v -i run dev",
 		"lint": "eslint .",
-		"format": "prettier .",
+		"format": "prettier --write .",
 		"taze": "yarn dlx taze -r -I",
 		"typecheck": "yarn workspaces foreach -p -A run typecheck"
 	},

@@ -7,7 +7,48 @@
 import type { MakeTuyauRequest, MakeTuyauResponse } from '@tuyau/utils/types'
 import type { InferInput } from '@vinejs/vine/types'
 
+type PostsGetHead = {
+  request: unknown
+  response: MakeTuyauResponse<import('../app/controllers/list_posts_controller.ts').default['handle'], false>
+}
+type PostsIdGetHead = {
+  request: unknown
+  response: MakeTuyauResponse<import('../app/controllers/get_post_controller.ts').default['handle'], false>
+}
+type UsersMeGetHead = {
+  request: unknown
+  response: MakeTuyauResponse<import('../app/users/controllers/get_account_controller.ts').default['handle'], false>
+}
+type UsersLoginPost = {
+  request: unknown
+  response: MakeTuyauResponse<import('../app/auth/controllers/login_controller.ts').default['handle'], false>
+}
 export interface ApiDefinition {
+  'posts': {
+    '$url': {
+    };
+    '$get': PostsGetHead;
+    '$head': PostsGetHead;
+    ':id': {
+      '$url': {
+      };
+      '$get': PostsIdGetHead;
+      '$head': PostsIdGetHead;
+    };
+  };
+  'users': {
+    'me': {
+      '$url': {
+      };
+      '$get': UsersMeGetHead;
+      '$head': UsersMeGetHead;
+    };
+    'login': {
+      '$url': {
+      };
+      '$post': UsersLoginPost;
+    };
+  };
 }
 const routes = [
 ] as const;
