@@ -1,25 +1,24 @@
-import { Route, Router } from '@solidjs/router';
-import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
-import { onMount } from 'solid-js';
-import { initTheme } from './libs/theme.js';
-import { OnePost } from './posts/views/one.js';
-import { Posts } from './posts/views/posts.js';
-import { Login } from './users/views/login.js';
-import { Me } from './users/views/me.js';
 
-const queryClient = new QueryClient();
+import './App.css'
+import { LoginButton, LogoutButton } from './components/auth_buttons'
+import AbstractWalletProvider from './providers/AbstractWalletProvider'
 
-export default function App() {
-	onMount(() => initTheme());
-
-	return (
-		<QueryClientProvider client={queryClient}>
-			<Router>
-				<Route path="/" component={Posts} />
-				<Route path="/:id" component={OnePost} />
-				<Route path="/login" component={Login} />
-				<Route path="/me" component={Me} />
-			</Router>
-		</QueryClientProvider>
-	);
+function App() {
+  return (
+    <AbstractWalletProvider>
+      <div className="App">
+        <header className="App-header">
+          <h1>Welcome to the Abstract Wallet App</h1>
+        </header>
+        <main>
+          <p>This is a simple app to demonstrate the Abstract Wallet integration.</p>
+          {/* Additional components can be added here */}`
+          <LoginButton />
+          <LogoutButton />
+        </main>
+      </div>
+    </AbstractWalletProvider>
+  )
 }
+
+export default App
