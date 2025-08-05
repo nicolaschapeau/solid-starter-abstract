@@ -1,45 +1,68 @@
-// src/hooks/useGameSocket.ts
-import { useEffect, useState } from 'react'
-import { io, Socket } from 'socket.io-client'
+import { useEffect, useState, useRef } from "react"
+import { io, Socket } from "socket.io-client"
 
-interface PlayerState {
+/** Types du lobby et du jeu */
+export interface PlayerState {
   id: string
   x: number
   y: number
   vx: number
   vy: number
+  color: string
 }
 
-interface GameState {
+export interface LobbyState {
   id: string
   players: Record<string, PlayerState>
   started: boolean
-  countdown?: number
+  countdown: number
+}
+
+export interface GameState {
+  id: string
+  started: boolean
+  players: Record<string, PlayerState>
 }
 
 export function useGameSocket() {
-  const [socket, setSocket] = useState<Socket | null>(null)
-  const [lobbyState, setLobbyState] = useState<GameState | null>(null)
+  const [lobbyState, setLobbyState] = useState<LobbyState | null>(null)
   const [gameState, setGameState] = useState<GameState | null>(null)
+  const [joined, setJoined] = useState(false)
+  const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
-    const s = io(import.meta.env.VITE_API_URL || 'http://localhost:3333', {
-      transports: ['websocket'],
-    })
-    setSocket(s)
-
-    s.on('lobby_update', (state: GameState) => setLobbyState(state))
-    s.on('game_started', (state: GameState) => setGameState(state))
-    s.on('game_state', (state: GameState) => setGameState(state))
+    const socket: Socket = io("http://localhost:3333", { withCredentials: true })
+    socketRef.current = socket
 
     return () => {
-      s.disconnect()
+      socket.disconnect()
     }
   }, [])
 
-  const quickmatch = () => socket?.emit('quickmatch')
+  const quickmatch = () => {
+    const socket = socketRef.current
+    if (!socket) return
 
-  const sendMove = (dx: number, dy: number) => socket?.emit('move', { dx, dy })
+    setJoined(true)
+    socket.emit("quickmatch")
 
-  return { socket, lobbyState, gameState, quickmatch, sendMove }
+    // Event: lobby en attente
+    socket.on("lobby_state", (state: LobbyState) => {
+      setLobbyState(state)
+    })
+
+    // Event: état de la game pendant la partie
+    socket.on("game_state", (state: GameState) => {
+      setGameState(state)
+    })
+
+    // Event: transition du lobby vers la game
+    socket.on("game_started", () => {
+      setLobbyState(null)
+    })
+  }
+
+  return { lobbyState: joined ? lobbyState : null, gameState, quickmatch }
 }
+
+export type { LobbyState as TLobbyState, GameState as TGameState }

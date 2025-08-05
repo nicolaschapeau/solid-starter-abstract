@@ -18,10 +18,11 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"imports": {
-		"#database/*": "./database/*.js",
 		"#start/*": "./start/*.js",
-		"#tests/*": "./tests/*.js",
+		"#database/*": "./database/*.js",
+		"#providers/*": "./providers/*.js",
 		"#config/*": "./config/*.js",
+		"#types/*": "./types/*.js",
 		"#*": "./app/*.js"
 	},
 	"devDependencies": {

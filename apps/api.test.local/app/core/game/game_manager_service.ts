@@ -1,11 +1,14 @@
-import { Game } from './game_instance.js';
-import type { Server } from 'socket.io';
+import { Game } from './game_service.js';
 
 export default class GameManagerService {
 	private static instance: GameManagerService;
 	private games: Map<string, Game> = new Map();
-	private lobbyGame: Game | null = null;
-	private io: Server | null = null;
+
+	private constructor() {
+		// Crée une partie par défaut
+		const defaultGame = new Game();
+		this.games.set(defaultGame.id, defaultGame);
+	}
 
 	static getInstance(): GameManagerService {
 		if (!GameManagerService.instance) {
@@ -14,73 +17,32 @@ export default class GameManagerService {
 		return GameManagerService.instance;
 	}
 
-	attachIO(io: Server) {
-		this.io = io;
+	/** Retourne une game par ID ou la première */
+	getGame(id?: string): Game {
+		if (id) {
+			const game = this.games.get(id);
+			if (!game) throw new Error(`Game ${id} not found`);
+			return game;
+		}
+		const first = this.games.values().next().value as Game | undefined;
+		if (!first) return this.createGame();
+		return first;
 	}
 
-	/** Crée un lobby */
-	private createLobby(): Game {
+	/** Crée une nouvelle game */
+	createGame(): Game {
 		const game = new Game();
 		this.games.set(game.id, game);
-		this.lobbyGame = game;
-		console.log(`🟢 New lobby created: ${game.id}`);
 		return game;
 	}
 
-	getLobby(): Game {
-		if (!this.lobbyGame) {
-			this.createLobby();
-		}
-		return this.lobbyGame!;
-	}
-
-	/** Rejoint Quickmatch */
-	joinQuickmatch(socketId: string) {
-		const lobby = this.getLobby();
-		lobby.addPlayer(socketId);
-		this.broadcastLobby(lobby);
-
-		// Si 2 joueurs → countdown
-		if (!lobby.started && Object.keys(lobby.players).length >= 2 && !lobby.startTimeout) {
-			lobby.startCountdown(30_000, () => {
-				this.startGame(lobby);
-			});
-		}
-
-		// Si 8 joueurs → start instant
-		if (Object.keys(lobby.players).length >= 8 && !lobby.started) {
-			this.startGame(lobby);
-		}
-	}
-
-	/** Lance une partie */
-	startGame(game: Game) {
-		game.startGame();
-		this.io?.to(game.id).emit('game_started', game.getState());
-
-		// Démarrage du loop et broadcast state
-		game.startLoop((state) => {
-			this.io?.to(game.id).emit('game_state', state);
-		});
-
-		// Crée un nouveau lobby pour la suite
-		if (this.lobbyGame?.id === game.id) {
-			this.lobbyGame = null;
-			this.createLobby();
-		}
-	}
-
-	/** Retourne toutes les games existantes */
-	listGames(): Game[] {
-		return Array.from(this.games.values());
-	}
-
-	/** Supprime une game existante */
+	/** Supprime une game */
 	removeGame(id: string): boolean {
 		return this.games.delete(id);
 	}
 
-	broadcastLobby(game: Game) {
-		this.io?.to(game.id).emit('lobby_update', game.getState());
+	/** Liste toutes les games */
+	listGames(): Game[] {
+		return Array.from(this.games.values());
 	}
 }

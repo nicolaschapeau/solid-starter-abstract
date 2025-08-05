@@ -1,19 +1,5 @@
-// src/views/game/GameCanvas.tsx
-import React, { useEffect, useRef } from 'react'
-
-interface PlayerState {
-  id: string
-  x: number
-  y: number
-  vx: number
-  vy: number
-}
-
-interface GameState {
-  id: string
-  players: Record<string, PlayerState>
-  started: boolean
-}
+import { useEffect, useRef } from 'react'
+import type { GameState } from '../../hooks/useGameSocket'
 
 export default function GameCanvas({ gameState }: { gameState: GameState }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -24,11 +10,18 @@ export default function GameCanvas({ gameState }: { gameState: GameState }) {
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
+    // Dessine les joueurs
     Object.values(gameState.players).forEach((player) => {
       ctx.fillStyle = 'lime'
-      ctx.fillRect(player.x, player.y, 20, 20)
+      ctx.beginPath()
+      ctx.arc(player.x + 50, player.y + 50, 10, 0, Math.PI * 2)
+      ctx.fill()
     })
   }, [gameState])
 
-  return <canvas ref={canvasRef} width={800} height={800} className="border border-primary" />
+  return (
+    <div className="flex justify-center items-center h-full w-full">
+      <canvas ref={canvasRef} width={600} height={400} className="bg-black" />
+    </div>
+  )
 }

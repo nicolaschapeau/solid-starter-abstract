@@ -1,9 +1,11 @@
-import { useGameSocket } from "../hooks/useGameSocket"
 import GameLobby from "../components/game/lobby"
 import GameCanvas from "../components/game/canvas"
+import { useGameSocket } from "../hooks/useGameSocket"
 
 export default function HomePage() {
   const { lobbyState, gameState, quickmatch } = useGameSocket()
+
+  console.log("Lobby State:", lobbyState, gameState)
 
   if (!lobbyState && !gameState) {
     return (

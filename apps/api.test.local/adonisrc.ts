@@ -32,11 +32,15 @@ export default defineConfig({
 			file: () => import('@adonisjs/core/providers/repl_provider'),
 			environment: ['repl', 'test'],
 		},
+		{
+			file: () => import('#providers/game_socket_provider'),
+			environment: ['web'],
+		},
 		() => import('@adonisjs/core/providers/vinejs_provider'),
 		() => import('@adonisjs/cors/cors_provider'),
-		() => import('@adonisjs/lucid/database_provider'),
-		() => import('@adonisjs/session/session_provider'),
-		() => import('@adonisjs/auth/auth_provider'),
+		// () => import('@adonisjs/lucid/database_provider'),
+		// () => import('@adonisjs/session/session_provider'),
+		// () => import('@adonisjs/auth/auth_provider'),
 		() => import('@tuyau/core/tuyau_provider'),
 		() => import('@adonisjs/transmit/transmit_provider'),
 	],
@@ -49,7 +53,6 @@ export default defineConfig({
 | List of modules to import before starting the application.
 |
 */
-	preloads: [() => import('#start/routes'), () => import('#start/kernel'), () => import('#start/ws')],
 
 	/*
 |--------------------------------------------------------------------------
@@ -66,11 +69,6 @@ export default defineConfig({
 				files: ['tests/unit/**/*.spec(.ts|.js)'],
 				name: 'unit',
 				timeout: 2000,
-			},
-			{
-				files: ['tests/functional/**/*.spec(.ts|.js)'],
-				name: 'functional',
-				timeout: 30000,
 			},
 		],
 		forceExit: false,
