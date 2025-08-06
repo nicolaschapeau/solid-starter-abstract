@@ -25,14 +25,21 @@ export default class GameSocketService {
 			console.log('Client connected', socket.id);
 
 			// 🔹 Reconnexion automatique
+			// 🔹 Reconnexion automatique
 			const pid = socket.handshake.auth?.playerId as string | undefined;
 			if (pid) {
 				for (const game of this.manager.games.values()) {
 					if (game.players[pid]) {
+						// ✅ Ne pas reconnecter si la partie est terminée
+						if (game.ended) {
+							console.log(`Player ${pid} tried to reconnect but game ended`);
+							break;
+						}
+
 						console.log(`Player ${pid} reconnected`);
 						socket.data.playerId = pid;
 						socket.join(game.id);
-						game.reconnectPlayer(pid); // ✅
+						game.reconnectPlayer(pid);
 						break;
 					}
 				}

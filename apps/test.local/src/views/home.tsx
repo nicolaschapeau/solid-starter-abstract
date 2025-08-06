@@ -14,10 +14,10 @@ export default function HomePage() {
         >
           Quick Match
         </button>
-      ) : !gameState.started ? (
-        <GameLobby gameState={gameState} playerId={playerId} />
-      ) : (
+      ) : gameState.started ? (
         <GameCanvas gameState={gameState} />
+      ) : (
+        <GameLobby gameState={gameState} playerId={playerId} />
       )}
     </div>
   )

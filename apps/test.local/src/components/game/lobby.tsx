@@ -48,9 +48,7 @@ export default function GameLobby({
           Waiting for players… ({gameState.players.length}/2)
         </p>
       ) : (
-        <p className="text-gray-300">
-          Game starts in {gameState.timeLeft}s
-        </p>
+        <p className="text-gray-300">Game starts in {gameState.timeLeft}s</p>
       )}
     </div>
   )

@@ -10,12 +10,16 @@ export default function GameCanvas({ gameState }: { gameState: GameState }) {
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
-    Object.values(gameState.players).forEach((player) => {
+    gameState.players.forEach((player) => {
       ctx.fillStyle = player.color
+      ctx.globalAlpha = player.active ? 1 : 0.75
+
       ctx.beginPath()
-      ctx.arc(player.x, player.y, 5, 0, Math.PI * 2)
+      ctx.arc(player.x, player.y, 6, 0, Math.PI * 2)
       ctx.fill()
     })
+
+    ctx.globalAlpha = 1
   }, [gameState])
 
   return (

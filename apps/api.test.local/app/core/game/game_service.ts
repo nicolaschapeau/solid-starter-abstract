@@ -26,6 +26,9 @@ export default class GameService {
 	countdown = 30;
 	private interval?: NodeJS.Timeout;
 
+	// 🎨 Palette des couleurs dispo (8 joueurs max)
+	private readonly colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#00FF80'];
+
 	constructor(
 		public io: Server,
 		id: string
@@ -33,26 +36,26 @@ export default class GameService {
 		this.id = id;
 	}
 
-	/** Add or reactivate a player */
+	/** Ajoute ou réactive un joueur */
 	addPlayer(playerId: string, name?: string, avatar?: string) {
 		if (this.players[playerId]) {
-			// Reactivation if player already exists
+			// Réactivation si le joueur existe déjà
 			this.players[playerId].active = true;
 			this.broadcastState();
 			return;
 		}
 
-		const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#00FF80'];
+		// 🔹 Choix d'une couleur unique libre
+		const usedColors = new Set(Object.values(this.players).map((p) => p.color));
+		const color =
+			this.colors.find((c) => !usedColors.has(c)) ?? this.colors[Math.floor(Math.random() * this.colors.length)];
 
-		const idx = Object.keys(this.players).length;
-		const angle = (2 * Math.PI * idx) / 8;
-		const radius = 250;
-
+		// Spawn provisoire dans le lobby (hors écran ou null)
 		this.players[playerId] = {
 			id: playerId,
-			x: 400 + radius * Math.cos(angle),
-			y: 300 + radius * Math.sin(angle),
-			color: colors[idx % colors.length],
+			x: -100,
+			y: -100,
+			color,
 			active: true,
 			name,
 			avatar,
@@ -61,17 +64,18 @@ export default class GameService {
 		this.broadcastState();
 	}
 
-	/** Handle player disconnection */
+	/** Déconnexion d'un joueur */
 	disconnectPlayer(playerId: string) {
 		if (!this.players[playerId]) return;
 
 		if (!this.started) {
-			// Remove from lobby if game not started
+			// Supprimer le joueur du lobby si la partie n'a pas commencé
 			this.players = Object.fromEntries(Object.entries(this.players).filter(([id]) => id !== playerId));
 		} else {
-			// Mark inactive if game started
+			// Sinon, juste le marquer inactif
 			this.players[playerId].active = false;
 		}
+
 		this.broadcastState();
 	}
 
@@ -108,9 +112,24 @@ export default class GameService {
 		}
 	}
 
+	/** Démarrage de la partie */
 	private startGame() {
 		this.started = true;
-		this.countdown = 60;
+		this.countdown = 15;
+
+		// 🔹 Placement des joueurs uniquement à ce moment
+		const playersArr = Object.values(this.players);
+		const total = playersArr.length;
+		const centerX = 400;
+		const centerY = 400;
+		const radius = 250;
+
+		playersArr.forEach((player, idx) => {
+			const angle = (2 * Math.PI * idx) / total;
+			player.x = centerX + radius * Math.cos(angle);
+			player.y = centerY + radius * Math.sin(angle);
+		});
+
 		this.interval = setInterval(() => this.tickGame(), 1000);
 		this.broadcastState();
 	}
@@ -140,12 +159,14 @@ export default class GameService {
 		return Object.values(this.players).filter((p) => p.active).length;
 	}
 
-	/** Handle player reconnection */
+	/** Reconnexion */
 	reconnectPlayer(playerId: string) {
 		if (!this.players[playerId]) return;
 
-		this.players[playerId].active = true;
+		// ✅ Si la partie est déjà terminée, on ne touche à rien
+		if (this.ended) return;
 
+		this.players[playerId].active = true;
 		this.broadcastState();
 	}
 }

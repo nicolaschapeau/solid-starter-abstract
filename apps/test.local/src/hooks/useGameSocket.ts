@@ -57,12 +57,25 @@ export function useGameSocket() {
 
   useEffect(() => {
     const socket = io("http://localhost:3333", {
-      auth: { playerId }, // 🔹 Permet la reconnexion auto côté serveur
+      auth: { playerId }, // 🔹 pour la reconnexion serveur
     })
     socketRef.current = socket
 
-    socket.on("lobby_state", (state: GameState) => setGameState(state))
-    socket.on("game_state", (state: GameState) => setGameState(state))
+    // --- Reco auto si la game existe encore ---
+    const handleState = (state: GameState) => {
+      if (state.ended) {
+        // Si la game est déjà terminée → on reste sur Quick Match
+        setJoined(false)
+        setGameState(null)
+        return
+      }
+      setGameState(state)
+      setJoined(true)
+    }
+
+    socket.on("lobby_state", handleState)
+    socket.on("game_state", handleState)
+
     socket.on("game_ended", () => {
       setJoined(false)
       setGameState(null)
@@ -78,6 +91,7 @@ export function useGameSocket() {
     }
   }, [playerId])
 
+  // --- QuickMatch ---
   const quickmatch = () => {
     if (!socketRef.current) return
     setJoined(true)
