@@ -1,68 +1,97 @@
 import { useEffect, useState, useRef } from "react"
 import { io, Socket } from "socket.io-client"
+import { usePrivy, type User, type WalletWithMetadata } from "@privy-io/react-auth"
 
-/** Types du lobby et du jeu */
-export interface PlayerState {
+export interface Player {
   id: string
   x: number
   y: number
-  vx: number
-  vy: number
   color: string
-}
-
-export interface LobbyState {
-  id: string
-  players: Record<string, PlayerState>
-  started: boolean
-  countdown: number
+  active: boolean
+  name?: string
+  avatar?: string
 }
 
 export interface GameState {
   id: string
   started: boolean
-  players: Record<string, PlayerState>
+  ended: boolean
+  players: Player[]
+  timeLeft: number
+}
+
+interface ExtendedWallet extends WalletWithMetadata {
+  embeddedWallets?: { address: string }[]
+}
+
+function getPersistentGuestId(): string {
+  const key = "guest_player_id"
+  let id = localStorage.getItem(key)
+  if (!id) {
+    id = `guest-${Math.random().toString(36).slice(2)}`
+    localStorage.setItem(key, id)
+  }
+  return id
+}
+
+function getWalletAddress(user: User | null): string | null {
+  if (!user?.linkedAccounts) return null
+  const account = (user.linkedAccounts as ExtendedWallet[]).find(
+    (acc) => acc.embeddedWallets?.length
+  )
+  return account?.embeddedWallets?.[0]?.address ?? null
 }
 
 export function useGameSocket() {
-  const [lobbyState, setLobbyState] = useState<LobbyState | null>(null)
-  const [gameState, setGameState] = useState<GameState | null>(null)
-  const [joined, setJoined] = useState(false)
+  const { user } = usePrivy()
   const socketRef = useRef<Socket | null>(null)
 
+  const [gameState, setGameState] = useState<GameState | null>(null)
+  const [joined, setJoined] = useState(false)
+
+  const playerId = getWalletAddress(user) ?? getPersistentGuestId()
+  const playerName = user?.twitter?.username ?? playerId.slice(0, 6)
+  const playerAvatar =
+    user?.twitter?.profilePictureUrl ??
+    `https://api.dicebear.com/7.x/pixel-art/svg?seed=${playerId}`
+
   useEffect(() => {
-    const socket: Socket = io("http://localhost:3333", { withCredentials: true })
+    const socket = io("http://localhost:3333", {
+      auth: { playerId }, // 🔹 Permet la reconnexion auto côté serveur
+    })
     socketRef.current = socket
+
+    socket.on("lobby_state", (state: GameState) => setGameState(state))
+    socket.on("game_state", (state: GameState) => setGameState(state))
+    socket.on("game_ended", () => {
+      setJoined(false)
+      setGameState(null)
+    })
+
+    socket.on("disconnect", () => {
+      setJoined(false)
+      setGameState(null)
+    })
 
     return () => {
       socket.disconnect()
     }
-  }, [])
+  }, [playerId])
 
   const quickmatch = () => {
-    const socket = socketRef.current
-    if (!socket) return
-
+    if (!socketRef.current) return
     setJoined(true)
-    socket.emit("quickmatch")
-
-    // Event: lobby en attente
-    socket.on("lobby_state", (state: LobbyState) => {
-      setLobbyState(state)
-    })
-
-    // Event: état de la game pendant la partie
-    socket.on("game_state", (state: GameState) => {
-      setGameState(state)
-    })
-
-    // Event: transition du lobby vers la game
-    socket.on("game_started", () => {
-      setLobbyState(null)
+    socketRef.current.emit("quickmatch", {
+      playerId,
+      name: playerName,
+      avatar: playerAvatar,
     })
   }
 
-  return { lobbyState: joined ? lobbyState : null, gameState, quickmatch }
+  return {
+    gameState,
+    joined,
+    quickmatch,
+    playerId,
+  }
 }
-
-export type { LobbyState as TLobbyState, GameState as TGameState }

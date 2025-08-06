@@ -1,94 +1,151 @@
-import { randomUUID } from 'node:crypto';
+import { type Server } from 'socket.io';
 
-export interface PlayerState {
+export interface Player {
 	id: string;
 	x: number;
 	y: number;
-	vx: number;
-	vy: number;
 	color: string;
+	active: boolean;
+	name?: string;
+	avatar?: string;
 }
 
 export interface GameState {
 	id: string;
-	players: Record<string, PlayerState>;
 	started: boolean;
+	ended: boolean;
+	players: Player[];
+	timeLeft: number;
 }
 
-export class Game {
-	readonly id: string;
-	players: Record<string, PlayerState> = {};
+export default class GameService {
+	id: string;
 	started = false;
+	ended = false;
+	players: Record<string, Player> = {};
+	countdown = 30;
+	private interval?: NodeJS.Timeout;
 
-	private interval: NodeJS.Timeout | null = null;
-	private readonly tickRate = 60; // 60 FPS
-
-	constructor() {
-		this.id = randomUUID();
+	constructor(
+		public io: Server,
+		id: string
+	) {
+		this.id = id;
 	}
 
-	/** Ajoute un joueur avec une position sur un cercle */
-	addPlayer(id: string): void {
-		const color = this.getRandomColor();
-		this.players[id] = { id, x: 0, y: 0, vx: 0, vy: 0, color };
-		this.repositionPlayers();
+	/** Add or reactivate a player */
+	addPlayer(playerId: string, name?: string, avatar?: string) {
+		if (this.players[playerId]) {
+			// Reactivation if player already exists
+			this.players[playerId].active = true;
+			this.broadcastState();
+			return;
+		}
+
+		const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#00FF80'];
+
+		const idx = Object.keys(this.players).length;
+		const angle = (2 * Math.PI * idx) / 8;
+		const radius = 250;
+
+		this.players[playerId] = {
+			id: playerId,
+			x: 400 + radius * Math.cos(angle),
+			y: 300 + radius * Math.sin(angle),
+			color: colors[idx % colors.length],
+			active: true,
+			name,
+			avatar,
+		};
+
+		this.broadcastState();
 	}
 
-	/** Supprime un joueur */
-	removePlayer(id: string): void {
-		this.players = Object.fromEntries(Object.entries(this.players).filter(([key]) => key !== id));
-		this.repositionPlayers();
+	/** Handle player disconnection */
+	disconnectPlayer(playerId: string) {
+		if (!this.players[playerId]) return;
+
+		if (!this.started) {
+			// Remove from lobby if game not started
+			this.players = Object.fromEntries(Object.entries(this.players).filter(([id]) => id !== playerId));
+		} else {
+			// Mark inactive if game started
+			this.players[playerId].active = false;
+		}
+		this.broadcastState();
 	}
 
-	/** Met à jour la vélocité du joueur */
-	handleInput(id: string, input: { dx: number; dy: number }): void {
-		const player = this.players[id];
-		if (!player) return;
-		player.vx = input.dx;
-		player.vy = input.dy;
+	getState(): GameState {
+		return {
+			id: this.id,
+			started: this.started,
+			ended: this.ended,
+			players: Object.values(this.players),
+			timeLeft: this.countdown,
+		};
 	}
 
-	/** Update positions */
-	private update(): void {
-		for (const player of Object.values(this.players)) {
-			player.x += player.vx;
-			player.y += player.vy;
+	tryStartCountdown() {
+		if (this.started || this.activePlayersCount() < 2) return;
+		if (!this.interval) {
+			this.interval = setInterval(() => this.tickCountdown(), 1000);
 		}
 	}
 
-	/** Start loop */
-	startLoop(callback: (state: GameState) => void): void {
-		if (this.interval) return;
-		this.interval = setInterval(() => {
-			this.update();
-			callback({ id: this.id, players: this.players, started: this.started });
-		}, 1000 / this.tickRate);
+	private tickCountdown() {
+		if (this.activePlayersCount() < 2) {
+			this.countdown = 30;
+			this.broadcastState();
+			return;
+		}
+
+		this.countdown--;
+		this.broadcastState();
+
+		if (this.countdown <= 0) {
+			clearInterval(this.interval!);
+			this.startGame();
+		}
 	}
 
-	stopLoop(): void {
-		if (this.interval) clearInterval(this.interval);
-		this.interval = null;
+	private startGame() {
+		this.started = true;
+		this.countdown = 60;
+		this.interval = setInterval(() => this.tickGame(), 1000);
+		this.broadcastState();
 	}
 
-	/** Repositionne les joueurs sur un cercle autour du centre */
-	private repositionPlayers(): void {
-		const count = Object.keys(this.players).length;
-		if (count === 0) return;
+	private tickGame() {
+		this.countdown--;
+		this.broadcastState();
 
-		const radius = 250;
-		const centerX = 0;
-		const centerY = 0;
-
-		Object.values(this.players).forEach((player, index) => {
-			const angle = (2 * Math.PI * index) / count;
-			player.x = centerX + radius * Math.cos(angle);
-			player.y = centerY + radius * Math.sin(angle);
-		});
+		if (this.countdown <= 0) {
+			this.endGame();
+		}
 	}
 
-	/** Couleurs aléatoires pour les joueurs */
-	private getRandomColor(): string {
-		const colors = ['#FF4444', '#44FF44', '#4444FF', '#FFFF44', '#FF44FF', '#44FFFF', '#FFA500', '#00CED1'];
-		return colors[Math.floor(Math.random() * colors.length)];
+	private endGame() {
+		this.ended = true;
+		clearInterval(this.interval!);
+		this.io.to(this.id).emit('game_ended');
+	}
+
+	broadcastState() {
+		const state = this.getState();
+		if (!this.started) this.io.to(this.id).emit('lobby_state', state);
+		else this.io.to(this.id).emit('game_state', state);
+	}
+
+	activePlayersCount() {
+		return Object.values(this.players).filter((p) => p.active).length;
+	}
+
+	/** Handle player reconnection */
+	reconnectPlayer(playerId: string) {
+		if (!this.players[playerId]) return;
+
+		this.players[playerId].active = true;
+
+		this.broadcastState();
 	}
 }

@@ -1,48 +1,32 @@
-import { Game } from './game_service.js';
+import { type Server } from 'socket.io';
+import GameService from './game_service.ts';
 
 export default class GameManagerService {
-	private static instance: GameManagerService;
-	private games: Map<string, Game> = new Map();
+	io: Server;
+	games: Map<string, GameService> = new Map();
 
-	private constructor() {
-		// Crée une partie par défaut
-		const defaultGame = new Game();
-		this.games.set(defaultGame.id, defaultGame);
+	constructor(io: Server) {
+		this.io = io;
 	}
 
-	static getInstance(): GameManagerService {
-		if (!GameManagerService.instance) {
-			GameManagerService.instance = new GameManagerService();
+	/** Retourne la game en cours ou en crée une nouvelle */
+	quickmatch(playerId: string, name?: string, avatar?: string) {
+		let game: GameService | undefined;
+
+		// On prend la première game non terminée
+		for (const g of this.games.values()) {
+			if (!g.ended) {
+				game = g;
+				break;
+			}
 		}
-		return GameManagerService.instance;
-	}
 
-	/** Retourne une game par ID ou la première */
-	getGame(id?: string): Game {
-		if (id) {
-			const game = this.games.get(id);
-			if (!game) throw new Error(`Game ${id} not found`);
-			return game;
+		if (!game) {
+			game = new GameService(this.io, `game-${Date.now()}`);
+			this.games.set(game.id, game);
 		}
-		const first = this.games.values().next().value as Game | undefined;
-		if (!first) return this.createGame();
-		return first;
-	}
 
-	/** Crée une nouvelle game */
-	createGame(): Game {
-		const game = new Game();
-		this.games.set(game.id, game);
+		game.addPlayer(playerId, name, avatar);
 		return game;
-	}
-
-	/** Supprime une game */
-	removeGame(id: string): boolean {
-		return this.games.delete(id);
-	}
-
-	/** Liste toutes les games */
-	listGames(): Game[] {
-		return Array.from(this.games.values());
 	}
 }
