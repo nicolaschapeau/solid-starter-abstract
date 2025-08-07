@@ -67,6 +67,27 @@ export default class GameSocketService {
 					}
 				}
 			});
+
+			socket.on('turn', ({ dir }) => {
+				const pid = socket.data.playerId;
+				if (!pid) return;
+
+				for (const game of this.manager.games.values()) {
+					if (game.players[pid] && game.started && !game.ended) {
+						const player = game.players[pid];
+						const turnSpeed = 0.1; // radians/frame
+						player.angle += dir * turnSpeed;
+					}
+				}
+			});
+
+			socket.on('update_angle', ({ playerId, angle }) => {
+				for (const game of this.manager.games.values()) {
+					if (game.players[playerId] && !game.ended) {
+						game.players[playerId].angle = angle;
+					}
+				}
+			});
 		});
 	}
 }

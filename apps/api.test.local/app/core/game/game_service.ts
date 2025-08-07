@@ -4,6 +4,7 @@ export interface Player {
 	id: string;
 	x: number;
 	y: number;
+	angle: number;
 	color: string;
 	active: boolean;
 	name?: string;
@@ -16,6 +17,7 @@ export interface GameState {
 	ended: boolean;
 	players: Player[];
 	timeLeft: number;
+	timestamp: number;
 }
 
 export default class GameService {
@@ -24,6 +26,7 @@ export default class GameService {
 	ended = false;
 	players: Record<string, Player> = {};
 	countdown = 30;
+	private tickInterval?: NodeJS.Timeout;
 	private interval?: NodeJS.Timeout;
 
 	// 🎨 Palette des couleurs dispo (8 joueurs max)
@@ -57,6 +60,7 @@ export default class GameService {
 			y: -100,
 			color,
 			active: true,
+			angle: 0,
 			name,
 			avatar,
 		};
@@ -86,6 +90,7 @@ export default class GameService {
 			ended: this.ended,
 			players: Object.values(this.players),
 			timeLeft: this.countdown,
+			timestamp: Date.now(),
 		};
 	}
 
@@ -128,24 +133,37 @@ export default class GameService {
 			const angle = (2 * Math.PI * idx) / total;
 			player.x = centerX + radius * Math.cos(angle);
 			player.y = centerY + radius * Math.sin(angle);
+			player.angle = angle;
 		});
 
-		this.interval = setInterval(() => this.tickGame(), 1000);
+		this.tickInterval = setInterval(() => this.tickGame(), 33);
 		this.broadcastState();
 	}
 
 	private tickGame() {
-		this.countdown--;
-		this.broadcastState();
+		if (this.ended) return;
 
-		if (this.countdown <= 0) {
-			this.endGame();
+		const speed = 2.5;
+		for (const player of Object.values(this.players)) {
+			if (!player.active) continue;
+			const dx = Math.cos(player.angle) * speed;
+			const dy = Math.sin(player.angle) * speed;
+			player.x += dx;
+			player.y += dy;
 		}
+
+		if (this.activePlayersCount() <= 1) {
+			this.endGame();
+			return;
+		}
+
+		this.broadcastState();
 	}
 
 	private endGame() {
 		this.ended = true;
 		clearInterval(this.interval!);
+		clearInterval(this.tickInterval!);
 		this.io.to(this.id).emit('game_ended');
 	}
 
